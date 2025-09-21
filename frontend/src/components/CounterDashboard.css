@@ -1,0 +1,8 @@
+.counter-dashboard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;      /* horizontal centering */
+  justify-content: center;  /* vertical centering */
+  min-height: 80vh;         /* take most of the screen */
+  padding: 20px;
+}

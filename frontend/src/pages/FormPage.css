@@ -1,0 +1,74 @@
+.form-container {
+  background-color: #fff;
+  padding: 40px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  width: 100%;
+  max-width: 600px; /* increased width for dashboard */
+  text-align: center;
+  margin: 40px auto; /* center the container vertically */
+}
+
+.form-container h2 {
+  margin-bottom: 24px;
+  font-size: 24px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column; /* stack vertically */
+  gap: 16px;             /* spacing between inputs */
+}
+
+.form input,
+.form select {
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  width: 100%;           /* full width */
+  box-sizing: border-box;
+}
+
+.form button {
+  padding: 12px;
+  background-color: #007bff;
+  color: white;
+  font-size: 16px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.form button:hover {
+  background-color: #0056b3;
+}
+
+/* Employee Dashboard Table Styles */
+.queue-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.queue-table th,
+.queue-table td {
+  border: 1px solid #ccc;
+  padding: 12px;
+  text-align: left;
+}
+
+.queue-table th {
+  background-color: #007bff;
+  color: white;
+}
+
+.status-served {
+  color: green;
+  font-weight: bold;
+}
+
+.status-pending {
+  color: red;
+  font-weight: bold;
+}
