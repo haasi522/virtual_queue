@@ -1,44 +1,46 @@
 .login-container {
-  max-width: 400px;        /* Tailwind max-w-md */
-  margin: 40px auto 0;     /* mx-auto mt-10 */
-  background-color: white; /* Tailwind bg-white */
-  padding: 24px;           /* Tailwind p-6 */
-  border-radius: 8px;      /* Tailwind rounded */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Tailwind shadow */
+  max-width: 500px;        /* increased from 400px */
+  width: 90%;              /* responsive on smaller screens */
+  margin: 60px auto;       /* more top margin */
+  background-color: white;
+  padding: 32px;           /* slightly more padding */
+  border-radius: 12px;     /* slightly larger rounding */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* stronger shadow */
 }
 
 .login-title {
-  font-size: 1.5rem;   /* Tailwind text-2xl */
+  font-size: 1.75rem;      /* slightly bigger */
   font-weight: bold;
-  margin-bottom: 16px; /* Tailwind mb-4 */
+  margin-bottom: 20px;
   text-align: center;
 }
 
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 12px; /* Tailwind space-y-3 */
+  gap: 16px;               /* more spacing between inputs */
 }
 
 .login-input {
   width: 100%; 
-  padding: 10px;
+  padding: 12px;
   border: 1px solid #ccc;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 1rem;
 }
 
 .login-btn {
   width: 100%;
-  padding: 10px;
-  background-color: #2563eb; /* Tailwind bg-blue-600 */
+  padding: 12px;
+  background-color: #2563eb;
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 1rem;
+  transition: background 0.3s;
 }
 
 .login-btn:hover {
-  background-color: #1d4ed8; /* darker blue */
+  background-color: #1d4ed8;
 }

@@ -8,54 +8,25 @@ function RegisterPage() {
     name: "",
     email: "",
     password: "",
-    role: "customer",
+    role: "customer", // default role
   });
-  const [registered, setRegistered] = useState(false); // Track if user has registered
-  const [queueInfo, setQueueInfo] = useState(null);    // Token info after "Take Token"
+  const [registered, setRegistered] = useState(false); // track registration success
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // 1️⃣ Handle user registration
+  // Handle registration
   const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data } = await API.post("/auth/register", form);
-      localStorage.setItem("user", JSON.stringify(data));
+      await API.post("/auth/register", form); // ✅ don’t store user in localStorage here
 
-      if (data.role === "customer") {
-        setRegistered(true); // show "Take Token" button
-      } else if (data.role === "employee") {
-        navigate("/employee");
-        return;
-      } else if (data.role === "admin") {
-        navigate("/admin");
-        return;
-      }
+      // Show success message
+      setRegistered(true);
     } catch (err) {
       alert(
         "Registration failed: " + (err.response?.data?.message || err.message)
       );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 2️⃣ Handle "Take Token" click
-  const handleTakeToken = async () => {
-    setLoading(true);
-    try {
-      const { data } = await API.post("/queue/take-token", { email: form.email });
-
-      // Map backend response to frontend state
-      setQueueInfo({
-        token: data.queueToken,
-        customersAhead: data.customersAhead,
-        estWaitingTime: data.estWaitingTime,
-        name: data.name,
-      });
-    } catch (err) {
-      alert("Failed to take token: " + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -92,10 +63,13 @@ function RegisterPage() {
             required
             className="register-input"
           />
+
+          {/* Role Dropdown */}
           <select
             value={form.role}
             onChange={(e) => setForm({ ...form, role: e.target.value })}
             className="register-select"
+            required
           >
             <option value="customer">Customer</option>
             <option value="employee">Employee</option>
@@ -108,27 +82,27 @@ function RegisterPage() {
         </form>
       )}
 
-      {/* Take Token Button */}
-      {registered && !queueInfo && (
-        <div className="take-token-container">
-          <h3>Registration successful!</h3>
-          <button
-            onClick={handleTakeToken}
-            className="register-button"
-            disabled={loading}
-          >
-            {loading ? "Processing..." : "Take Token"}
-          </button>
-        </div>
-      )}
-
-      {/* Queue Card */}
-      {queueInfo && (
-        <div className="queue-card">
-          <h3>Welcome, {queueInfo.name}!</h3>
-          <p><strong>Your Token:</strong> #{queueInfo.token}</p>
-          <p><strong>Customers Ahead:</strong> {queueInfo.customersAhead}</p>
-          <p><strong>Estimated Waiting Time:</strong> {queueInfo.estWaitingTime} minutes</p>
+      {/* Success Message + Login Link */}
+      {registered && (
+        <div
+          className="login-link-container"
+          style={{ marginTop: "20px", textAlign: "center" }}
+        >
+          <h3>✅ Registration successful!</h3>
+          <p>
+            Please{" "}
+            <span
+              style={{
+                color: "#2563eb",
+                cursor: "pointer",
+                fontWeight: "bold",
+              }}
+              onClick={() => navigate("/")}
+            >
+              Login
+            </span>{" "}
+            to continue.
+          </p>
         </div>
       )}
     </div>

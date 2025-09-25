@@ -24,6 +24,7 @@ function App() {
       }}>
         <Routes>
           <Route path="/" element={<LoginPage />} />
+          <Route path="/login" element={<LoginPage />} /> 
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/customer" element={<CustomerPage />} />
           <Route path="/employee" element={<EmployeePage />} />

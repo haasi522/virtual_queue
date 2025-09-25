@@ -23,29 +23,22 @@ mongoose
 // -------------------
 // MODELS
 // -------------------
-
-// User Model
 const userSchema = new mongoose.Schema({
   name: String,
   email: { type: String, unique: true },
   password: String,
-  role: {
-    type: String,
-    enum: ["customer", "employee", "admin"],
-    default: "customer",
-  },
-  queueToken: Number, // 👈 Store token assigned
+  role: { type: String, enum: ["customer", "employee", "admin"], default: "customer" },
+  queueToken: Number,
 });
 const User = mongoose.model("User", userSchema);
 
-// Queue Model
 const queueSchema = new mongoose.Schema(
   {
     token: Number,
     email: String,
     name: String,
     status: { type: String, enum: ["Pending", "Served"], default: "Pending" },
-    servedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // employee
+    servedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }
 );
@@ -54,11 +47,7 @@ const Queue = mongoose.model("Queue", queueSchema);
 // -------------------
 // ROUTES
 // -------------------
-
-// Test
-app.get("/", (req, res) => {
-  res.send("Backend is running 🚀");
-});
+app.get("/", (req, res) => res.send("Backend running 🚀"));
 
 // -------------------
 // AUTH
@@ -69,47 +58,37 @@ app.post("/auth/register", async (req, res) => {
   const { name, email, password, role } = req.body;
   try {
     const existingUser = await User.findOne({ email });
-    if (existingUser)
-      return res.status(400).json({ message: "Email already registered" });
+    if (existingUser) return res.status(400).json({ message: "Email already registered" });
+
+    if (!password || password.length < 4) {
+      return res.status(400).json({ message: "Password must be at least 4 characters" });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      role,
-    });
+    const user = await User.create({ name, email, password: hashedPassword, role });
 
-    res.json({
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    });
+    res.json({ id: user._id, name: user.name, email: user.email, role: user.role });
   } catch (err) {
     console.error("Register error:", err);
     res.status(500).json({ message: "Registration failed" });
   }
 });
 
-// Login
+// Login with role check
 app.post("/auth/login", async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, role } = req.body; // role sent from frontend dropdown
   try {
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: "User not found" });
 
+    if (user.role !== role) return res.status(400).json({ message: `User is not a ${role}` });
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid password" });
 
-    res.json({
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    });
+    res.json({ id: user._id, name: user.name, email: user.email, role: user.role });
   } catch (err) {
-    console.error(err);
+    console.error("Login error:", err);
     res.status(500).json({ message: "Login failed" });
   }
 });
@@ -118,21 +97,26 @@ app.post("/auth/login", async (req, res) => {
 // QUEUE
 // -------------------
 
-// Take token
+// Take token – ensures token is generated only once per pending customer
 app.post("/queue/take-token", async (req, res) => {
   const { email } = req.body;
-
   try {
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Check if user already has a token pending
+    if (user.role !== "customer") return res.status(400).json({ message: "Only customers can take tokens" });
+
+    // Delete previous day's queue automatically
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    await Queue.deleteMany({ createdAt: { $lt: startOfToday } });
+
+    // Check if customer already has a pending token
     let queueItem = await Queue.findOne({ email, status: "Pending" });
 
     if (!queueItem) {
-      // Assign next token
-      const lastToken = await Queue.findOne().sort({ token: -1 });
-      const nextToken = lastToken ? lastToken.token + 1 : 1;
+      const todayQueueCount = await Queue.countDocuments({ createdAt: { $gte: startOfToday } });
+      const nextToken = todayQueueCount + 1;
 
       queueItem = await Queue.create({
         token: nextToken,
@@ -140,19 +124,16 @@ app.post("/queue/take-token", async (req, res) => {
         name: user.name,
       });
 
-      // Save token to user
       user.queueToken = nextToken;
       await user.save();
     }
 
-    // Count customers ahead
     const customersAhead = await Queue.countDocuments({
       status: "Pending",
       token: { $lt: queueItem.token },
     });
 
-    // Estimate waiting time (5 min per customer)
-    const estWaitingTime = customersAhead * 5;
+    const estWaitingTime = customersAhead * 5; // 5 minutes per customer
 
     res.json({
       name: queueItem.name,
@@ -161,27 +142,31 @@ app.post("/queue/take-token", async (req, res) => {
       estWaitingTime,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Take token error:", err);
     res.status(500).json({ message: "Failed to take token" });
   }
 });
 
-// Get full queue with pendingAhead & estimated time
+// Get all queue items
 app.get("/queue/all", async (req, res) => {
   try {
-    const queue = await Queue.find().sort({ createdAt: 1 });
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
 
-    const updatedQueue = queue.map((q) => {
+    // Only fetch today's queue
+    const queue = await Queue.find({ createdAt: { $gte: startOfToday } }).sort({ createdAt: 1 });
+
+    const updatedQueue = queue.map((q, index) => {
       const pendingAhead = queue.filter(
-        (item) => item.status === "Pending" && item.token < q.token
+        (item) => item.status === "Pending" && item.createdAt < q.createdAt
       ).length;
-      const estimatedTime = pendingAhead * 5; // 5 min per customer
-      return { ...q._doc, pendingAhead, estimatedTime };
+      const estimatedTime = pendingAhead * 5;
+      return { ...q._doc, token: index + 1, pendingAhead, estimatedTime }; // daily-reset token
     });
 
     res.json(updatedQueue);
   } catch (err) {
-    console.error(err);
+    console.error("Fetch queue error:", err);
     res.status(500).json({ message: "Error fetching queue" });
   }
 });
@@ -197,7 +182,7 @@ app.post("/queue/serve/:token", async (req, res) => {
     );
     res.json(updated);
   } catch (err) {
-    console.error(err);
+    console.error("Serve token error:", err);
     res.status(500).json({ message: "Error serving token" });
   }
 });
@@ -205,8 +190,6 @@ app.post("/queue/serve/:token", async (req, res) => {
 // -------------------
 // ADMIN
 // -------------------
-
-// Get all employees with served count
 app.get("/admin/employees", async (req, res) => {
   try {
     const employees = await User.find({ role: "employee" }).select("-password");
@@ -228,23 +211,21 @@ app.get("/admin/employees", async (req, res) => {
 
     res.json(employeesWithCount);
   } catch (err) {
-    console.error(err);
+    console.error("Fetch employees error:", err);
     res.status(500).json({ message: "Error fetching employees" });
   }
 });
 
-// Remove employee
 app.delete("/admin/employees/:id", async (req, res) => {
   try {
     await User.findByIdAndDelete(req.params.id);
     res.json({ message: "Employee removed" });
   } catch (err) {
-    console.error(err);
+    console.error("Delete employee error:", err);
     res.status(500).json({ message: "Error deleting employee" });
   }
 });
 
-// Queue analytics
 app.get("/admin/analytics", async (req, res) => {
   try {
     const totalCustomers = await Queue.countDocuments();
@@ -253,16 +234,13 @@ app.get("/admin/analytics", async (req, res) => {
     const avgServiceTime = 5;
     const estTimeRemaining = pending * avgServiceTime;
 
-    // daily stats
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
 
     const dailyStats = await Queue.aggregate([
-      {
-        $match: { createdAt: { $gte: today, $lt: tomorrow } },
-      },
+      { $match: { createdAt: { $gte: today, $lt: tomorrow } } },
       {
         $group: {
           _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
@@ -273,21 +251,13 @@ app.get("/admin/analytics", async (req, res) => {
       { $sort: { _id: 1 } },
     ]);
 
-    res.json({
-      totalCustomers,
-      served,
-      pending,
-      avgServiceTime,
-      estTimeRemaining,
-      dailyStats,
-    });
+    res.json({ totalCustomers, served, pending, avgServiceTime, estTimeRemaining, dailyStats });
   } catch (err) {
-    console.error(err);
+    console.error("Analytics error:", err);
     res.status(500).json({ message: "Error fetching analytics" });
   }
 });
 
-// Get today's customers
 app.get("/admin/customers/today", async (req, res) => {
   try {
     const today = new Date();
@@ -301,7 +271,7 @@ app.get("/admin/customers/today", async (req, res) => {
 
     res.json({ customers });
   } catch (err) {
-    console.error(err);
+    console.error("Customers today error:", err);
     res.status(500).json({ message: "Error fetching today's customers" });
   }
 });

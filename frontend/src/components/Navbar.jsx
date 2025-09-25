@@ -1,13 +1,26 @@
 import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import "./Navbar.css";
 
 function Navbar() {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem("user"));
+  const [user, setUser] = useState(null);
+
+  // Load user from localStorage whenever it changes
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    } else {
+      setUser(null);
+    }
+  }, [localStorage.getItem("user")]); // <-- rerun when user changes
 
   const handleLogout = () => {
     localStorage.removeItem("user");
-    navigate("/");
+    setUser(null); // clear state
+    navigate("/login");
+    window.location.reload(); // force reload to clean everything
   };
 
   return (
@@ -25,7 +38,7 @@ function Navbar() {
           </>
         ) : (
           <>
-            <Link to="/">Login</Link>
+            <Link to="/login">Login</Link>
             <Link to="/register">Register</Link>
           </>
         )}
